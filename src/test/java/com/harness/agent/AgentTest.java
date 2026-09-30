@@ -9,10 +9,11 @@ import java.util.List;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class AgentTest {
+    private final RecordingEventPublisher events = new RecordingEventPublisher();
 
     @Test
     void возвращаетОтветМодели() {
-        Agent agent = new Agent(ScriptedChatModel.replyingWith("I am Harness."));
+        Agent agent = new Agent(ScriptedChatModel.replyingWith("I am Harness."),events);
 
         assertThat(agent.run("Кто ты?")).isEqualTo("I am Harness.");
     }
@@ -20,7 +21,7 @@ class AgentTest {
     @Test
     void первымСообщениемВсегдаИдётСистемныйПромпт() {
         ScriptedChatModel model = ScriptedChatModel.replyingWith("ok");
-        Agent agent = new Agent(model);
+        Agent agent = new Agent(model,events);
 
         agent.run("Привет");
 
@@ -32,7 +33,7 @@ class AgentTest {
     @Test
     void помнитПредыдущиеХоды() {
         ScriptedChatModel model = ScriptedChatModel.replyingWith("Привет!", "Тебя зовут Саша.");
-        Agent agent = new Agent(model);
+        Agent agent = new Agent(model,events);
 
         agent.run("Меня зовут Саша");
         agent.run("Как меня зовут?");
