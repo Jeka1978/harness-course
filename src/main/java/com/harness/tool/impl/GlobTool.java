@@ -62,6 +62,9 @@ public class GlobTool implements Tool<GlobTool.Input> {
         } catch (WorkspaceGuard.WorkspaceViolationException e) {
             return ToolResult.error(e.getMessage());
         }
+        if (!Files.isDirectory(root)) {
+            return ToolResult.error("папка не найдена: " + input.path());
+        }
         PathMatcher matcher;
         try {
             matcher = matcherFor(input.pattern());

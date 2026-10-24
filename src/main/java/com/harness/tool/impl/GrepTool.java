@@ -43,8 +43,7 @@ public class GrepTool implements Tool<GrepTool.Input> {
     public String description() {
         return """
                 Searches inside files with a regular expression. Use this when you know
-                what the code says but not which file says it. To find a file by its name,
-                use Glob instead.
+                what the code says but not which file says it.
 
                 Usage:
                 - Output modes: FILES_WITH_MATCHES lists paths (default), CONTENT shows matching
@@ -109,7 +108,7 @@ public class GrepTool implements Tool<GrepTool.Input> {
         int shown = 0;
         for (Path file : files) {
             List<String> lines = lines(file);
-            for (int i = 0; i < lines.size(); i++) {
+            for (int i = 0; i < lines.size() && shown < MAX_MATCHES; i++) {
                 if (regex.matcher(lines.get(i)).find()) {
                     out.append("%s:%d:%s%n".formatted(workspaceGuard.relativize(file), i + 1, lines.get(i).strip()));
                     shown++;
