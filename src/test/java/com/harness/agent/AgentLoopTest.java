@@ -4,6 +4,7 @@ import static com.harness.agent.TestAgents.agent;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.harness.tool.Tool;
+import com.harness.tool.ToolContext;
 import com.harness.tool.ToolResult;
 import java.util.ArrayList;
 import java.util.List;
@@ -57,7 +58,7 @@ class AgentLoopTest {
         }
 
         @Override
-        public ToolResult call(Input input) {
+        public ToolResult call(Input input, ToolContext context) {
             calls.add(input.value());
             return answer;
         }

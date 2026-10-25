@@ -23,8 +23,9 @@ public class ToolRegistry {
     private final Map<String, Tool<?>> byName = new LinkedHashMap<>();
     private final ApplicationEventPublisher publisher;
     private final JsonHelper json = new JsonHelper();
+    private final ToolContext context;
 
-    public ToolRegistry(List<Tool<?>> tools, ApplicationEventPublisher applicationEventPublisher) {
+    public ToolRegistry(List<Tool<?>> tools, ApplicationEventPublisher applicationEventPublisher, FileStateCache readFileState) {
         for (Tool<?> tool : tools) {
             Tool<?> clash = byName.put(tool.name(), tool);
             if (clash != null) {
@@ -35,6 +36,7 @@ public class ToolRegistry {
             }
         }
         this.publisher = applicationEventPublisher;
+        this.context = new ToolContext(readFileState);
     }
 
     public List<Tool<?>> tools() {
@@ -62,7 +64,7 @@ public class ToolRegistry {
             return ToolResult.error("не разобрать аргументы %s: %s".formatted(tool.name(), e.getMessage()));
         }
         try {
-            return tool.call(input);
+            return tool.call(input, context);
         } catch (Exception e) {
             return ToolResult.error("%s упал: %s".formatted(tool.name(), e));
         }

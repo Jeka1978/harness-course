@@ -3,6 +3,8 @@ package com.harness.tool.impl;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.harness.agent.AgentProperties;
+import com.harness.tool.FileStateCache;
+import com.harness.tool.ToolContext;
 import com.harness.tool.ToolResult;
 import com.harness.tool.WorkspaceGuard;
 import java.io.IOException;
@@ -18,6 +20,8 @@ class FileReadToolTest {
     @TempDir
     Path workspace;
 
+    private final ToolContext context = new ToolContext(new FileStateCache());
+
     private FileReadTool tool;
 
     @BeforeEach
@@ -26,7 +30,7 @@ class FileReadToolTest {
     }
 
     private ToolResult read(String path, Integer offset, Integer limit) {
-        return tool.call(new FileReadTool.Input(path, offset, limit));
+        return tool.call(new FileReadTool.Input(path, offset, limit), context);
     }
 
     private void write(String name, int lines) throws IOException {

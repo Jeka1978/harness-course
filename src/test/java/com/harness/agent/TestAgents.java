@@ -1,5 +1,6 @@
 package com.harness.agent;
 
+import com.harness.tool.FileStateCache;
 import com.harness.tool.SpringAiToolAdapter;
 import com.harness.tool.Tool;
 import com.harness.tool.ToolRegistry;
@@ -17,7 +18,7 @@ final class TestAgents {
 
     static Agent agent(
             ChatModel model, RecordingEventPublisher events, AgentProperties properties, Tool<?>... tools) {
-        ToolRegistry registry = new ToolRegistry(List.of(tools), events);
+        ToolRegistry registry = new ToolRegistry(List.of(tools), events, new FileStateCache());
         return new Agent(model, events, registry, new SpringAiToolAdapter(registry), properties);
     }
 }

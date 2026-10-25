@@ -1,6 +1,7 @@
 package com.harness.tool.impl;
 
 import com.harness.tool.Tool;
+import com.harness.tool.ToolContext;
 import com.harness.tool.ToolResult;
 import com.harness.tool.WorkspaceGuard;
 import org.jspecify.annotations.Nullable;
@@ -60,7 +61,7 @@ public class GrepTool implements Tool<GrepTool.Input> {
     }
 
     @Override
-    public ToolResult call(Input input) {
+    public ToolResult call(Input input, ToolContext toolContext) {
         if (input.pattern() == null || input.pattern().isBlank()) {
             return ToolResult.error(
                     "не указан шаблон поиска: заполни поле pattern — например \"@Test\" или \"class .*Tool\"");
