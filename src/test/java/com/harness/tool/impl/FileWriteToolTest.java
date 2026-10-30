@@ -26,7 +26,7 @@ class FileWriteToolTest {
 
     @BeforeEach
     void setUp() {
-        tool = new FileWriteTool(new WorkspaceGuard(new AgentProperties(20, workspace.toString())));
+        tool = new FileWriteTool(new WorkspaceGuard(new AgentProperties(20, workspace.toString(), true)));
     }
 
     private ToolResult write(String path, String content) {
