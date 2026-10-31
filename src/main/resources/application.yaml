@@ -13,6 +13,7 @@ spring:
         think: false
         temperature: 0.2
         model: qwen3.5:4b
+        num-ctx: 16384
 
 harness.agent:
   workspace-root: .
