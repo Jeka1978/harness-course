@@ -7,26 +7,29 @@ import com.harness.tool.FileStateCache;
 import com.harness.tool.ToolContext;
 import com.harness.tool.ToolResult;
 import com.harness.tool.WorkspaceGuard;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+
 class FileWriteToolTest {
 
-    @TempDir
-    Path workspace;
+    @TempDir Path workspace;
 
     private final FileStateCache cache = new FileStateCache();
-    private final ToolContext context = new ToolContext(cache);
+    private final ToolContext context = com.harness.TestPermissionConfig.context(cache);
 
     private FileWriteTool tool;
 
     @BeforeEach
     void setUp() {
-        tool = new FileWriteTool(new WorkspaceGuard(new AgentProperties(20, workspace.toString(), true)));
+        tool =
+                new FileWriteTool(
+                        new WorkspaceGuard(new AgentProperties(20, workspace.toString(), true)));
     }
 
     private ToolResult write(String path, String content) {
@@ -49,8 +52,8 @@ class FileWriteToolTest {
     }
 
     /**
-     * Промах записи стоит всего содержимого файла — поэтому поверх существующего
-     * пишем только то, что агент до этого прочитал.
+     * Промах записи стоит всего содержимого файла — поэтому поверх существующего пишем только то,
+     * что агент до этого прочитал.
      */
     @Test
     void поверхНепрочитанногоФайлаПисатьНельзя() throws IOException {
@@ -84,11 +87,11 @@ class FileWriteToolTest {
     }
 
     @Test
-    void выходЗаРабочуюПапкуЗапрещён() {
-        ToolResult result = write("../../чужое.java", "class Agent {}\n");
-
-        assertThat(result.error()).isTrue();
-        assertThat(result.content()).contains("вне рабочей папки");
+    void путьСнаружиТребуетРазрешенияДоВыполнения() {
+        var decision =
+                tool.checkPermissions(new FileWriteTool.Input("../outside.txt", "x"), context);
+        assertThat(decision.behavior()).isEqualTo(com.harness.permission.PermissionBehavior.ASK);
+        assertThat(decision.reason()).contains("вне рабочих каталогов");
     }
 
     @Test

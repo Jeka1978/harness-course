@@ -1,21 +1,22 @@
 package com.harness.context;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
+import com.harness.TestPermissionConfig;
 import com.harness.tool.FileStateCache;
 import com.harness.tool.Tool;
 import com.harness.tool.ToolContext;
 import com.harness.tool.ToolRegistry;
 import com.harness.tool.ToolResult;
+
 import org.junit.jupiter.api.Test;
 import org.springframework.context.ApplicationEventPublisher;
 
 import java.util.List;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 class SystemPromptBuilderTest {
 
-    private static final ApplicationEventPublisher БЕЗ_СОБЫТИЙ = event -> {
-    };
+    private static final ApplicationEventPublisher БЕЗ_СОБЫТИЙ = event -> {};
 
     /** Инструмент-пустышка: промпту нужны только имя и первая строка описания. */
     static class FakeTool implements Tool<String> {
@@ -42,8 +43,14 @@ class SystemPromptBuilderTest {
 
     private SystemPromptBuilder builder(boolean personality) {
         ToolRegistry registry =
-                new ToolRegistry(List.of(new FakeTool()), БЕЗ_СОБЫТИЙ, new FileStateCache());
-        return new SystemPromptBuilder(registry, new com.harness.agent.AgentProperties(20, ".", personality));
+                com.harness.TestPermissionConfig.registry(
+                        List.of(new FakeTool()),
+                        БЕЗ_СОБЫТИЙ,
+                        new FileStateCache(),
+                        TestPermissionConfig.permissive(),
+                        TestPermissionConfig.allowOnce());
+        return new SystemPromptBuilder(
+                registry, new com.harness.agent.AgentProperties(20, ".", personality));
     }
 
     @Test
@@ -64,8 +71,8 @@ class SystemPromptBuilderTest {
     }
 
     /**
-     * Инвентарь, а не перечисление через запятую: с числом и по строке на инструмент.
-     * Плоский список модель читала невнимательно и теряла из него элементы.
+     * Инвентарь, а не перечисление через запятую: с числом и по строке на инструмент. Плоский
+     * список модель читала невнимательно и теряла из него элементы.
      */
     @Test
     void перечисляетИнструментыСЯвнымЧислом() {

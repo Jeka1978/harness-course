@@ -26,3 +26,6 @@ logging:
     com.harness: INFO
   pattern:
     console: "%msg%n"
+harness:
+  permission:
+    mode: accept_edits

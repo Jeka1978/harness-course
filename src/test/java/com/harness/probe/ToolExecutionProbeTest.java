@@ -1,5 +1,7 @@
 package com.harness.probe;
 
+import org.springframework.context.annotation.Import;
+import com.harness.TestPermissionConfig;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.List;
@@ -28,6 +30,7 @@ import org.springframework.test.context.ActiveProfiles;
  */
 @Tag("ollama")
 @SpringBootTest
+@Import(TestPermissionConfig.class)
 @ActiveProfiles("test")
 class ToolExecutionProbeTest {
 

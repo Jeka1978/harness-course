@@ -1,6 +1,10 @@
 package com.harness.tool;
 
 import com.harness.agent.event.AgentEvent;
+import com.harness.permission.OrdersKeeper;
+import com.harness.permission.PermissionBehavior;
+import com.harness.permission.PermissionDecision;
+import com.harness.permission.PermissionGate;
 import org.springframework.ai.util.JsonHelper;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
@@ -24,8 +28,9 @@ public class ToolRegistry {
     private final ApplicationEventPublisher publisher;
     private final JsonHelper json = new JsonHelper();
     private final ToolContext context;
+    private final PermissionGate permissionGate;
 
-    public ToolRegistry(List<Tool<?>> tools, ApplicationEventPublisher applicationEventPublisher, FileStateCache readFileState) {
+    public ToolRegistry(List<Tool<?>> tools, ApplicationEventPublisher applicationEventPublisher, ToolContext context, PermissionGate permissionGate) {
         for (Tool<?> tool : tools) {
             Tool<?> clash = byName.put(tool.name(), tool);
             if (clash != null) {
@@ -36,11 +41,12 @@ public class ToolRegistry {
             }
         }
         this.publisher = applicationEventPublisher;
-        this.context = new ToolContext(readFileState);
+        this.context = context;
+        this.permissionGate = permissionGate;
     }
 
     public List<Tool<?>> tools() {
-        return List.copyOf(byName.values());
+        return byName.values().stream().filter(tool -> permissionGate.isAvailable(tool, context)).toList();
     }
 
     public ToolResult execute(String toolName, String arguments) {
@@ -63,12 +69,19 @@ public class ToolRegistry {
         } catch (Exception e) {
             return ToolResult.error("не разобрать аргументы %s: %s".formatted(tool.name(), e.getMessage()));
         }
+        // Единственное место, где аргументов может не быть вовсе: дальше каждый Tool получает их непустыми.
+        if (input == null) return ToolResult.error("не указаны аргументы");
         try {
+            PermissionDecision decision = permissionGate.authorize(tool, input, context);
+            if(decision.behavior() != PermissionBehavior.ALLOW) {
+                return ToolResult.error("вызов запрещён: " + decision.reason());
+            }
             return tool.call(input, context);
         } catch (Exception e) {
             return ToolResult.error("%s упал: %s".formatted(tool.name(), e));
         }
     }
+
 
 
     private <I> String describeCall(Tool<I> tool, String argumentsJson) {

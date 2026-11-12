@@ -1,5 +1,7 @@
 package com.harness.tool.impl;
 
+import com.harness.permission.PathInspector;
+import com.harness.permission.PermissionDecision;
 import com.harness.tool.Tool;
 import com.harness.tool.ToolContext;
 import com.harness.tool.ToolResult;
@@ -50,6 +52,25 @@ public class GlobTool implements Tool<GlobTool.Input> {
     @Override
     public Class<Input> inputType() {
         return Input.class;
+    }
+
+
+    /**
+     * Поиск читает каталог: PermissionEvaluator вызывает Tool, Tool выбирает файловую проверку чтения.
+     * В ОРИГИНАЛЕ поиск ещё и прячет запрещённые файлы: шаблоны из запретов Read передаются
+     * поиску как список исключений, и модель не видит ни имён, ни строк из таких файлов.
+     * У нас проверяется только каталог, в котором ищем.
+     */
+    @Override
+    public PermissionDecision checkPermissions(Input input, ToolContext context) {
+        return PathInspector.checkRead(workspaceGuard, searchPath(input), context.permissions());
+    }
+
+    /** Если path не задан, ищем от корня проекта. */
+    private static String searchPath(Input input) {
+        return input.path() == null ? "." : input.path();
+
+
     }
 
     @Override

@@ -1,5 +1,6 @@
 package com.harness.agent;
 
+import com.harness.TestPermissionConfig;
 import com.harness.context.ContextManager;
 import com.harness.context.GitStatusProvider;
 import com.harness.context.ProjectMemoryLoader;
@@ -8,8 +9,10 @@ import com.harness.tool.FileStateCache;
 import com.harness.tool.SpringAiToolAdapter;
 import com.harness.tool.Tool;
 import com.harness.tool.ToolRegistry;
-import java.util.List;
+
 import org.springframework.ai.chat.model.ChatModel;
+
+import java.util.List;
 
 /** Сборка агента для тестов: без Spring-контекста и без сети. */
 final class TestAgents {
@@ -21,15 +24,29 @@ final class TestAgents {
     }
 
     static Agent agent(
-            ChatModel model, RecordingEventPublisher events, AgentProperties properties, Tool<?>... tools) {
-        ToolRegistry registry = new ToolRegistry(List.of(tools), events, new FileStateCache());
-        return new Agent(model, events, registry, new SpringAiToolAdapter(registry), properties,
+            ChatModel model,
+            RecordingEventPublisher events,
+            AgentProperties properties,
+            Tool<?>... tools) {
+        ToolRegistry registry =
+                com.harness.TestPermissionConfig.registry(
+                        List.of(tools),
+                        events,
+                        new FileStateCache(),
+                        TestPermissionConfig.permissive(),
+                        TestPermissionConfig.allowOnce());
+        return new Agent(
+                model,
+                events,
+                registry,
+                new SpringAiToolAdapter(registry),
+                properties,
                 context(registry, properties));
     }
 
     /**
-     * Настоящий {@link ContextManager}, а не заглушка: весь контекст — обычные объекты
-     * с конструкторами, и собрать их руками дешевле, чем объяснять подмену.
+     * Настоящий {@link ContextManager}, а не заглушка: весь контекст — обычные объекты с
+     * конструкторами, и собрать их руками дешевле, чем объяснять подмену.
      */
     private static ContextManager context(ToolRegistry registry, AgentProperties properties) {
         return new ContextManager(

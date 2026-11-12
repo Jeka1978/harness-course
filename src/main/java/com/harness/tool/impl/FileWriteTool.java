@@ -1,5 +1,7 @@
 package com.harness.tool.impl;
 
+import com.harness.permission.PathInspector;
+import com.harness.permission.PermissionDecision;
 import com.harness.tool.Tool;
 import com.harness.tool.ToolContext;
 import com.harness.tool.ToolResult;
@@ -50,6 +52,11 @@ public class FileWriteTool implements Tool<FileWriteTool.Input> {
     @Override
     public String renderToolUseMessage(Input input) {
         return input.filePath() == null ? tag() : tag() + " " + input.filePath();
+    }
+
+    @Override
+    public PermissionDecision checkPermissions(Input input, ToolContext context) {
+       return PathInspector.checkWrite(workspaceGuard,input.filePath(),context.permissions());
     }
 
     @Override
