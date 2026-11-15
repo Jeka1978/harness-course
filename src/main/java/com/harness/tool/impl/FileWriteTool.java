@@ -34,6 +34,7 @@ public class FileWriteTool implements Tool<FileWriteTool.Input> {
                 
                 Usage:
                 - Use this tool to create a new file or to rewrite one completely
+                - Missing parent directories are created automatically; no need to check or create them first
                 - If the file exists, you MUST use Read on it first. This tool fails
                   if you did not
                 """;

@@ -13,8 +13,8 @@ import java.nio.file.Path;
  * Сценарий текущего урока. Единственный файл, который меняется «до» урока —
  * всё остальное мы дописываем по ходу.
  *
- * <p>Урок 7: просим запустить тесты. Агент знает проект, читает и правит
- * файлы, но выполнить команду ему пока нечем.
+ * <p>Урок 8: план из шести шагов. Первый шаг — прочитать три файла, и они
+ * вместе не помещаются в окно модели.
  */
 @Component
 @Profile("!test")
@@ -28,21 +28,17 @@ public class DemoRunner implements CommandLineRunner {
 
     @Override
     public void run(String... args) throws IOException {
-        editsScene();
-//        System.out.println(agent.run("Запусти тесты проекта и скажи, всё ли зелено."));
-    }
-
-
-
-    private void editsScene() throws IOException {
-        // Новый файл можно писать без предварительного Read, поэтому прошлую копию убираем.
-        Files.deleteIfExists(Path.of("target/lesson7-note.txt"));
-        // В DEFAULT запись спрашивает, ответь y. В ACCEPT_EDITS запись внутри проекта проходит молча.
-        System.out.println("\n=== БОНУС. Запись файла: DEFAULT спрашивает, ACCEPT_EDITS — нет ===");
+        // Прошлый прогон оставил ответы: убираем, чтобы видеть, что записал именно этот.
+        for (String result : new String[] {"number", "count", "done"}) {
+            Files.deleteIfExists(Path.of("target", result + ".txt"));
+        }
         System.out.println(agent.run("""
-                Создай инструментом Write новый файл target/lesson7-note.txt
-                с одной строкой: LESSON7_EDITS
-                Другие инструменты не нужны. В конце сообщи, получилось ли записать файл.
-                """));
+                В папке lesson-08 лежат три файла с заметками. Вот план, выполни его по шагам:
+                1. Прочитай все три файла: lesson-08/zametki-1.txt, lesson-08/zametki-2.txt, lesson-08/zametki-3.txt.
+                2. Запиши в файл target/number.txt контрольное число из третьего файла.
+                3. Запиши в файл target/count.txt, сколько файлов прочитано.
+                4. Запиши в файл target/done.txt слово ГОТОВО.
+                5. Прочитай target/done.txt и убедись, что слово на месте.
+                6. Доложи одной строкой: ПЛАН ВЫПОЛНЕН."""));
     }
 }

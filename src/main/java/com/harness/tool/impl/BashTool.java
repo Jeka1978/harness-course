@@ -1,6 +1,8 @@
 package com.harness.tool.impl;
 
 import com.harness.permission.CommandInspector;
+import com.harness.permission.PathInspector;
+import com.harness.permission.PermissionBehavior;
 import com.harness.permission.PermissionDecision;
 import com.harness.tool.Tool;
 import com.harness.tool.ToolContext;
@@ -26,6 +28,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Выполнение команды с ограничением времени и размера результата.
@@ -89,10 +93,111 @@ public class BashTool implements Tool<BashTool.Input> {
         return input.command() == null ? "" : input.command();
     }
 
+    /**
+     * Текст в файл пишет Write, а не оболочка: так человек видит и разрешает саму запись, а не строку shell.
+     * Отклоняем раньше вопроса человеку и говорим модели, что вызвать. Запуск программ с выводом в файл
+     * (mvnw test > build.log), mkdir и вывод в nul сюда не относятся.
+     */
+    @Override
+    public @Nullable String validateInput(Input input, ToolContext context) {
+        String target = authoredFileTarget(input.command());
+        if (target == null) {
+            if (!makesDirectory(input.command())) return null;
+            return "Вызови Write для файла, который кладёшь в этот каталог: недостающие каталоги Write создаёт сам. "
+                    + "Нужен пустой каталог — запиши в него Write пустой файл .gitkeep. "
+                    + "Bash каталоги не создаёт, команда не выполнялась.";
+        }
+        if (exists(target)) {
+            return ("Вызови Read для \"%s\", затем Edit — чтобы изменить файл, или Write — чтобы переписать его целиком. "
+                    + "Bash текст в файлы не пишет, команда не выполнялась.").formatted(target);
+        }
+        return ("Вызови Write: filePath \"%s\", в content — весь текст файла. Недостающие каталоги Write создаст сам. "
+                + "Bash текст в файлы не пишет, команда не выполнялась.").formatted(target);
+    }
+
+    private boolean exists(String target) {
+        try {
+            return Files.exists(workspaceGuard.resolve(target));
+        } catch (RuntimeException unresolvable) {
+            return false;
+        }
+    }
+
+    /** Команды, которые выводят текст из самой командной строки или из файла: их вывод в файл — это запись. */
+    private static final Pattern TEXT_REDIRECT = Pattern.compile(
+            "(?i)^\\s*[@(]?\\s*(?:echo|printf|cat|type|write-output|write-host)\\b.*?(?<![0-9&])>>?(?!&)\\s*(\"[^\"]*\"|'[^']*'|[^\\s<>()]+)");
+    /** Команды, чьё дело — положить текст в файл. New-Item каталога — это mkdir, его не трогаем. */
+    private static final Pattern WRITING_COMMAND = Pattern.compile(
+            "(?i)^\\s*(?:set-content|add-content|out-file|tee-object|tee|touch|copy\\s+con|fsutil\\s+file\\s+createnew|new-item(?!.*-itemtype\\s+[\"']?directory))\\b"
+                    + "(?:\\s+-(?:path|filepath|literalpath|a|append))*\\s*(\"[^\"]*\"|'[^']*'|[^\\s<>()-][^\\s<>()]*)?");
+    private static final List<String> NOWHERE = List.of("nul", "nul:", "$null", "/dev/null");
+    /** Создание каталога: mkdir, md и New-Item с -ItemType Directory. */
+    private static final Pattern MAKE_DIRECTORY = Pattern.compile(
+            "(?i)^\\s*(?:mkdir|md|new-item(?=.*-itemtype\\s+[\"']?directory))\\b");
+    /** Просмотр одного каталога: dir или ls с ключами и одним путём. */
+    private static final Pattern LISTING = Pattern.compile(
+            "(?i)^\\s*(?:dir|ls)(?:\\s+(?:--?[a-z]+|/[a-z]+))*\\s+(\"[^\"]+\"|[^\\s\"]+)\\s*$");
+
+    static boolean makesDirectory(@Nullable String command) {
+        if (command == null) return false;
+        Matcher segments = Pattern.compile("[^;|&\\r\\n]+").matcher(maskQuoted(command));
+        while (segments.find()) {
+            if (MAKE_DIRECTORY.matcher(segments.group()).find()) return true;
+        }
+        return false;
+    }
+
+    /** Путь каталога, который команда только показывает; null — это не просмотр одного каталога. */
+    static @Nullable String listedPath(@Nullable String command) {
+        if (command == null) return null;
+        Matcher m = LISTING.matcher(command);
+        return m.matches() ? m.group(1).replaceAll("^\"|\"$", "") : null;
+    }
+
+    /**
+     * Путь файла, в который команда пишет текст; null — команда файлов так не пишет. Текст в кавычках
+     * маскируем, чтобы > и ; внутри строки не сошли за перенаправление и разделитель команд.
+     */
+    static @Nullable String authoredFileTarget(@Nullable String command) {
+        if (command == null) return null;
+        String masked = maskQuoted(command);
+        Matcher segments = Pattern.compile("[^;|&\\r\\n]+").matcher(masked);
+        while (segments.find()) {
+            for (Pattern pattern : List.of(TEXT_REDIRECT, WRITING_COMMAND)) {
+                Matcher m = pattern.matcher(masked).region(segments.start(), segments.end()).useAnchoringBounds(true);
+                if (!m.find()) continue;
+                String target = m.group(1) == null ? "" : command.substring(m.start(1), m.end(1)).replaceAll("^[\"']|[\"']$", "");
+                if (NOWHERE.contains(target.toLowerCase(Locale.ROOT))) continue;
+                return target.isEmpty() ? "путь к файлу" : target;
+            }
+        }
+        return null;
+    }
+
+    /** Всё внутри кавычек заменяем на _, сами кавычки и длину строки сохраняем. */
+    private static String maskQuoted(String command) {
+        StringBuilder out = new StringBuilder(command.length());
+        char quote = 0;
+        for (char c : command.toCharArray()) {
+            if (quote != 0) {
+                out.append(c == quote ? c : '_');
+                if (c == quote) quote = 0;
+            } else {
+                if (c == '"' || c == '\'') quote = c;
+                out.append(c);
+            }
+        }
+        return out.toString();
+    }
+
     /** Сервис вызвал Tool. Tool передаёт проверку команды в CommandInspector. */
     @Override
     public PermissionDecision checkPermissions(Input input, ToolContext context) {
-        return CommandInspector.check(input.command(), context.permissions());
+        PermissionDecision decision = CommandInspector.check(input.command(), context.permissions());
+        // Просмотр каталога — это чтение: проверяем путь, как у Read и Glob. Правила Bash и обязательный вопрос важнее.
+        String listed = listedPath(input.command());
+        if (listed == null || decision.behavior() != PermissionBehavior.ASK || decision.askAlways()) return decision;
+        return PathInspector.checkRead(workspaceGuard, listed, context.permissions());
     }
 
     @Override

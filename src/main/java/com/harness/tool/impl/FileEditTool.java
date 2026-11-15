@@ -90,13 +90,19 @@ public class FileEditTool implements Tool<FileEditTool.Input> {
         if (refusal != null) {
             return ToolResult.error("%s: %s".formatted(input.filePath(), refusal));
         }
-        String before;
+        String raw;
         try {
-            before = Files.readString(file);
+            raw = Files.readString(file);
         } catch (IOException e) {
             return ToolResult.error("не удалось прочитать %s: %s".formatted(input.filePath(), e.getMessage()));
         }
-        int found = occurrences(before, input.oldString());
+        // Read показывает строки без \r, и модель присылает текст с \n. Сравниваем по \n,
+        // а записываем с теми концами строк, какие были в файле.
+        boolean crlf = raw.contains("\r\n");
+        String before = lf(raw);
+        String oldString = lf(input.oldString());
+        String newString = lf(input.newString());
+        int found = occurrences(before, oldString);
         if (found == 0) {
             return ToolResult.error(("текст не найден в %s. Прочитай файл инструментом Read"
                     + " и скопируй фрагмент точно").formatted(input.filePath()));
@@ -107,15 +113,19 @@ public class FileEditTool implements Tool<FileEditTool.Input> {
                     + " чтобы фрагмент стал уникальным, или укажи replaceAll")
                     .formatted(found, input.filePath()));
         }
-        String after = before.replace(input.oldString(), input.newString());
+        String after = before.replace(oldString, newString);
         try {
-            Files.writeString(file, after);
+            Files.writeString(file, crlf ? after.replace("\n", "\r\n") : after);
         } catch (IOException e) {
             return ToolResult.error("не удалось записать %s: %s".formatted(input.filePath(), e.getMessage()));
         }
         context.readFileState().remember(file);
 
         return ToolResult.ok("заменено в %s, вхождений: %d".formatted(input.filePath(), replaceAll ? found : 1));
+    }
+
+    private static String lf(String text) {
+        return text.replace("\r\n", "\n");
     }
 
     private static int occurrences(String haystack, String needle) {
