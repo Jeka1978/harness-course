@@ -17,6 +17,14 @@ public class Conversation {
         messages.add(new UserMessage(userMessage));
     }
 
+    /**
+     * Служебная врезка — отдельной репликой, как в Claude Code. Роли «система» посреди
+     * разговора нет, поэтому говорим голосом человека, а тег отличает врезку от просьбы.
+     */
+    public void addSystemReminder(String text) {
+        messages.add(new UserMessage("<system-reminder>\n" + text + "\n</system-reminder>"));
+    }
+
     public void addAssistantMessage(AssistantMessage assistantMessage) {
         messages.add(assistantMessage);
     }

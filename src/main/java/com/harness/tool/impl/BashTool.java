@@ -97,9 +97,17 @@ public class BashTool implements Tool<BashTool.Input> {
      * Текст в файл пишет Write, а не оболочка: так человек видит и разрешает саму запись, а не строку shell.
      * Отклоняем раньше вопроса человеку и говорим модели, что вызвать. Запуск программ с выводом в файл
      * (mvnw test > build.log), mkdir и вывод в nul сюда не относятся.
+     *
+     * <p>Вопрос «на какой мы ветке» тоже отклоняем: ответ уже лежит в разделе Repository системного промпта,
+     * а с Bash под рукой модель упрямо идёт его перепроверять. git status пропускаем: после правок снимок
+     * на начало разговора устаревает, и свежий статус бывает нужен по делу.
      */
     @Override
     public @Nullable String validateInput(Input input, ToolContext context) {
+        if (asksForBranch(input.command())) {
+            return "Текущая ветка уже есть в системном промпте, в разделе Repository, там же изменённые файлы "
+                    + "на начало разговора. Ответь по нему. Bash ветку не показывает, команда не выполнялась.";
+        }
         String target = authoredFileTarget(input.command());
         if (target == null) {
             if (!makesDirectory(input.command())) return null;
@@ -121,6 +129,19 @@ public class BashTool implements Tool<BashTool.Input> {
         } catch (RuntimeException unresolvable) {
             return false;
         }
+    }
+
+    /** «На какой мы ветке»: git branch, git branch --show-current, rev-parse и symbolic-ref для HEAD. */
+    private static final Pattern BRANCH_QUESTION = Pattern.compile(
+            "(?i)^\\s*git\\s+(?:branch(?:\\s+--show-current)?|rev-parse\\s+--abbrev-ref\\s+HEAD|symbolic-ref\\s+(?:--short\\s+)?HEAD)\\s*$");
+
+    /** Хватит одной части составной команды: git branch && git status — тоже вопрос о ветке. */
+    public static boolean asksForBranch(@Nullable String command) {
+        if (command == null) return false;
+        for (String part : command.split("&&|\\|\\||[;|\\r\\n]")) {
+            if (BRANCH_QUESTION.matcher(part).matches()) return true;
+        }
+        return false;
     }
 
     /** Команды, которые выводят текст из самой командной строки или из файла: их вывод в файл — это запись. */

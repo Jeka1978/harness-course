@@ -40,7 +40,11 @@ class AgentTest {
 
         // Второй запрос содержит всю историю: у модели нет памяти между вызовами,
         // помнит за неё Conversation.
-        List<String> secondCall = model.lastPrompt().getInstructions().stream().map(Message::getText).toList();
+        // Между репликами идут служебные врезки <system-reminder>: сравниваем то, что сказали сами.
+        List<String> secondCall = model.lastPrompt().getInstructions().stream()
+                .map(Message::getText)
+                .filter(text -> !text.startsWith("<system-reminder>"))
+                .toList();
         assertThat(secondCall)
                 .containsExactly(
                         secondCall.getFirst(), "Меня зовут Саша", "Привет!", "Как меня зовут?");

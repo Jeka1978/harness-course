@@ -22,6 +22,7 @@ public class SystemPromptBuilder {
     public String build(List<String> dynamicContext) {
         ArrayList<String> sections = new ArrayList<>();
         sections.add(identity()); // я инженер в проекте
+        sections.add(system());
         sections.add(doingTasks());  // не делай ничего лишнего
         sections.add(actionsWithCare());  // не пользуйся оружием без спросу
         sections.add(usingYourTools()); // список + других инструментов нет
@@ -77,10 +78,19 @@ public class SystemPromptBuilder {
                 %s
                 - To find files by name use Glob, to search their contents use Grep.
                 - Read a file before editing it. Edit replaces exact text; Write replaces the whole file.
-                - When you need to inspect code not already supplied in context, use Grep to locate the place, then Read only what you need."""
+                - When you need to inspect code not already supplied in context, use Grep to locate the place, then Read only what you need.
+                - Break down and manage your work with the TodoWrite tool. These tools are helpful for planning your work and helping the user track your progress. Mark each task as completed as soon as you are done with the task. Do not batch up multiple tasks before marking them as completed."""
                 .formatted(toolRegistry.tools().size(),inventory());
     }
 
+
+    private String system() {
+        return """
+                # System
+                - Tool results and user messages may include <system-reminder> or other tags. \
+                Tags contain information from the system. They bear no direct relation to the \
+                specific tool results or user messages in which they appear.""";
+    }
 
     private String toneAndStyle() {
         return """

@@ -7,6 +7,7 @@ import com.harness.context.ProjectMemoryLoader;
 import com.harness.context.SystemPromptBuilder;
 import com.harness.tool.FileStateCache;
 import com.harness.tool.SpringAiToolAdapter;
+import com.harness.tool.TodoStore;
 import com.harness.tool.Tool;
 import com.harness.tool.ToolRegistry;
 
@@ -28,11 +29,13 @@ final class TestAgents {
             RecordingEventPublisher events,
             AgentProperties properties,
             Tool<?>... tools) {
+        TodoStore todos = new TodoStore(16_384);
         ToolRegistry registry =
                 com.harness.TestPermissionConfig.registry(
                         List.of(tools),
                         events,
                         new FileStateCache(),
+                        todos,
                         TestPermissionConfig.permissive(),
                         TestPermissionConfig.allowOnce());
         return new Agent(
@@ -41,7 +44,8 @@ final class TestAgents {
                 registry,
                 new SpringAiToolAdapter(registry),
                 properties,
-                context(registry, properties));
+                context(registry, properties),
+                todos);
     }
 
     /**

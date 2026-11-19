@@ -5,7 +5,7 @@ import com.harness.permission.ToolPermissionContext;
 import org.springframework.stereotype.Component;
 
 @Component
-public record ToolContext(FileStateCache readFileState, OrdersKeeper ordersKeeper) {
+public record ToolContext(FileStateCache readFileState, OrdersKeeper ordersKeeper, TodoStore todos) {
     public ToolPermissionContext permissions() {
         return ordersKeeper.snapshot();
     }
