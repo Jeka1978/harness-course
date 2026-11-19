@@ -55,6 +55,9 @@ class MachineViewPrinter {
     /** Ширина текстовой колонки в панели контекста. */
     private static final int CONTEXT_WIDTH = 64;
 
+    /** Ширина полоски занятого места в окне. */
+    private static final int MEMORY_BAR = 32;
+
     /** Колонка, до которой выравнивается «[1] СОЗДАТЕЛЬ ·····». */
     private static final int ROLE_WIDTH = 18;
 
@@ -151,6 +154,20 @@ class MachineViewPrinter {
         block.add(Ansi.dim(head + " · В НЕЙРОПРОЦЕССОР:"));
         preview.lines().forEach(line -> block.add(rail(line)));
         print(block);
+    }
+
+    /** Сколько места осталось в окне модели: полоска занятого и число свободных токенов. */
+    void showFreeSpace(String cause, int usedTokens, int contextWindow) {
+        int filled = Math.clamp(Math.round((float) usedTokens * MEMORY_BAR / contextWindow), 0, MEMORY_BAR);
+        String bar = "█".repeat(filled) + "░".repeat(MEMORY_BAR - filled);
+        print(Ansi.red("> БЛОК ПАМЯТИ ") + Ansi.brightRed(bar)
+                + " свободно " + thousands(contextWindow - usedTokens)
+                + Ansi.dim(" из %s · %s".formatted(thousands(contextWindow), cause)));
+    }
+
+    /** 16384 → «16 384»: так большое число читается с экрана сразу. */
+    private static String thousands(int number) {
+        return "%,d".formatted(number).replace(',', ' ');
     }
 
     void showTurnLimitReached(int maxTurns) {

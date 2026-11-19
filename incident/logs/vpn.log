@@ -1,0 +1,54 @@
+2026-11-02 08:38:25 LOGIN  user=a.vosmisotov device=LT-042 ip=10.8.0.29
+2026-11-02 08:49:29 LOGIN  user=s.karimov   device=LT-019 ip=10.8.0.26
+2026-11-02 09:06:28 LOGIN  user=d.morozov   device=LT-023 ip=10.8.0.22
+2026-11-02 09:39:00 LOGIN  user=i.petrenko  device=LT-008 ip=10.8.0.24
+2026-11-02 09:40:18 LOGIN  user=v.sergeev   device=LT-003 ip=10.8.0.27
+2026-11-02 11:28:32 LOGIN  user=a.vlasova   device=LT-017 ip=10.8.0.21
+2026-11-02 11:35:59 LOGIN  user=j.connor    device=LT-031 ip=10.8.0.23
+2026-11-02 14:03:02 LOGOUT user=i.petrenko  device=LT-008
+2026-11-02 15:28:37 LOGOUT user=s.karimov   device=LT-019
+2026-11-02 16:09:05 LOGOUT user=d.morozov   device=LT-023
+2026-11-02 16:41:47 LOGOUT user=a.vosmisotov device=LT-042
+2026-11-02 16:45:16 LOGOUT user=j.connor    device=LT-031
+2026-11-02 17:00:42 LOGOUT user=v.sergeev   device=LT-003
+2026-11-02 17:11:51 LOGOUT user=a.vlasova   device=LT-017
+2026-11-02 18:40:20 LOGIN  user=deploy      device=CI-01  ip=10.8.0.2
+2026-11-02 18:50:48 LOGOUT user=deploy      device=CI-01
+2026-11-06 08:11:18 LOGIN  user=a.vlasova   device=LT-017 ip=10.8.0.21
+2026-11-06 08:23:08 LOGIN  user=d.morozov   device=LT-023 ip=10.8.0.22
+2026-11-06 08:43:30 LOGIN  user=v.sergeev   device=LT-003 ip=10.8.0.27
+2026-11-06 08:55:31 LOGIN  user=p.anikin    device=LT-044 ip=10.8.0.28
+2026-11-06 08:57:59 LOGIN  user=s.karimov   device=LT-019 ip=10.8.0.26
+2026-11-06 09:37:02 LOGIN  user=a.vosmisotov device=LT-042 ip=10.8.0.29
+2026-11-06 10:02:01 LOGIN  user=i.petrenko  device=LT-008 ip=10.8.0.24
+2026-11-06 10:08:04 LOGIN  user=n.belova    device=LT-012 ip=10.8.0.25
+2026-11-06 13:39:42 LOGOUT user=p.anikin    device=LT-044
+2026-11-06 13:55:54 LOGOUT user=v.sergeev   device=LT-003
+2026-11-06 14:30:58 LOGOUT user=a.vosmisotov device=LT-042
+2026-11-06 14:50:58 LOGOUT user=s.karimov   device=LT-019
+2026-11-06 15:28:34 LOGOUT user=n.belova    device=LT-012
+2026-11-06 15:30:04 LOGOUT user=i.petrenko  device=LT-008
+2026-11-06 15:33:36 LOGOUT user=a.vlasova   device=LT-017
+2026-11-06 16:21:42 LOGOUT user=d.morozov   device=LT-023
+2026-11-06 18:40:24 LOGIN  user=deploy      device=CI-01  ip=10.8.0.2
+2026-11-06 18:50:24 LOGOUT user=deploy      device=CI-01
+2026-11-06 21:05:33 LOGIN  user=n.belova    device=LT-012 ip=10.8.0.25
+2026-11-06 22:41:07 LOGIN  user=s.karimov   device=LT-019 ip=10.8.0.26
+2026-11-06 23:12:26 LOGOUT user=n.belova    device=LT-012
+2026-11-07 00:20:58 LOGOUT user=s.karimov   device=LT-019
+2026-11-07 01:14:03 FAIL   user=deploy      device=LT-031 reason=bad_password
+2026-11-07 01:14:39 FAIL   user=deploy      device=LT-031 reason=bad_password
+2026-11-07 03:09:44 LOGIN  user=deploy      device=LT-031 ip=10.8.0.31
+2026-11-07 03:31:02 LOGOUT user=deploy      device=LT-031
+2026-11-07 08:05:05 LOGIN  user=a.vlasova   device=LT-017 ip=10.8.0.21
+2026-11-07 08:31:49 LOGIN  user=s.karimov   device=LT-019 ip=10.8.0.26
+2026-11-07 08:33:48 LOGIN  user=a.vosmisotov device=LT-042 ip=10.8.0.29
+2026-11-07 09:33:10 LOGIN  user=p.anikin    device=LT-044 ip=10.8.0.28
+2026-11-07 10:24:59 LOGIN  user=d.morozov   device=LT-023 ip=10.8.0.22
+2026-11-07 13:16:56 LOGOUT user=a.vlasova   device=LT-017
+2026-11-07 13:19:38 LOGOUT user=a.vosmisotov device=LT-042
+2026-11-07 16:16:57 LOGOUT user=s.karimov   device=LT-019
+2026-11-07 16:42:59 LOGOUT user=p.anikin    device=LT-044
+2026-11-07 18:28:29 LOGOUT user=d.morozov   device=LT-023
+2026-11-07 18:40:28 LOGIN  user=deploy      device=CI-01  ip=10.8.0.2
+2026-11-07 18:50:31 LOGOUT user=deploy      device=CI-01

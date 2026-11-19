@@ -42,7 +42,8 @@ class HudTest {
                         agent,
                         List.of(),
                         com.harness.TestPermissionConfig.evaluator(
-                                com.harness.TestPermissionConfig.permissive()));
+                                com.harness.TestPermissionConfig.permissive()),
+                        16384);
     }
 
     private String output() {
@@ -123,7 +124,8 @@ class HudTest {
                                 new PrintStream(buffer, true, StandardCharsets.UTF_8)),
                         agent,
                         List.of(new com.harness.tool.impl.BashTool(new com.harness.tool.WorkspaceGuard(properties))),
-                        permissions);
+                        permissions,
+                        16384);
         List<BootLine> lines =
                 org.springframework.test.util.ReflectionTestUtils.invokeMethod(
                         monitor, "collectBootLines", 160);
@@ -144,7 +146,8 @@ class HudTest {
                         agent,
                         List.of(new com.harness.tool.impl.BashTool(new com.harness.tool.WorkspaceGuard(properties))),
                         com.harness.TestPermissionConfig.evaluator(
-                                com.harness.TestPermissionConfig.permissive()));
+                                com.harness.TestPermissionConfig.permissive()),
+                        16384);
         List<BootLine> lines =
                 org.springframework.test.util.ReflectionTestUtils.invokeMethod(
                         monitor, "collectBootLines", 160);

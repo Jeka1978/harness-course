@@ -7,6 +7,7 @@ import com.harness.permission.PermissionEvaluator;
 import com.harness.tool.Tool;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.boot.context.event.ApplicationStartedEvent;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
@@ -24,12 +25,15 @@ public class Hud {
     private final Agent agent;
     private final List<Tool<?>> tools;
     private final PermissionEvaluator permissions;
+    private final int contextWindow;
 
-    public Hud(MachineViewPrinter machinePrinter, Agent agent, List<Tool<?>> tools, PermissionEvaluator permissions) {
+    public Hud(MachineViewPrinter machinePrinter, Agent agent, List<Tool<?>> tools, PermissionEvaluator permissions,
+               @Value("${spring.ai.ollama.chat.num-ctx}") int contextWindow) {
         this.machinePrinter = machinePrinter;
         this.agent = agent;
         this.tools = tools;
         this.permissions = permissions;
+        this.contextWindow = contextWindow;
     }
 
     @EventListener(ApplicationStartedEvent.class)
@@ -106,6 +110,12 @@ public class Hud {
     @EventListener
     public void onToolCallFinished(AgentEvent.ToolCallFinished event) {
         machinePrinter.showToolCallFinished(event.error(), event.preview(), event.duration());
+    }
+
+    /** Разговор изменился — показываем, сколько места осталось в окне модели. */
+    @EventListener
+    public void onContextChanged(AgentEvent.ContextChanged event) {
+        machinePrinter.showFreeSpace(event.cause(), agent.conversation().tokens(), contextWindow);
     }
 
     @EventListener

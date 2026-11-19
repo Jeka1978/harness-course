@@ -27,4 +27,7 @@ public sealed interface AgentEvent {
 
     /** Агент переписал план. Событие публикует сам инструмент: только он знает, что список изменился. */
     record TodosUpdated(List<TodoItem> todos) implements AgentEvent { }
+
+    /** В разговоре что-то изменилось — пора пересчитать свободное место в окне. */
+    record ContextChanged(String cause) implements AgentEvent { }
 }

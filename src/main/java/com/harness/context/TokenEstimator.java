@@ -1,6 +1,7 @@
 package com.harness.context;
 
 import org.springframework.ai.chat.messages.Message;
+import org.springframework.ai.chat.messages.ToolResponseMessage;
 
 import java.util.List;
 
@@ -38,5 +39,17 @@ public final class TokenEstimator {
             total += estimate(message.getText());
         }
         return total;
+    }
+
+    /** Одно сообщение. У ответа инструментов {@code getText()} пуст: содержимое лежит в списке ответов. */
+    public static int estimate(Message message) {
+        if (message instanceof ToolResponseMessage toolResponses) {
+            int total = 0;
+            for (ToolResponseMessage.ToolResponse response : toolResponses.getResponses()) {
+                total += estimate(response.responseData());
+            }
+            return total;
+        }
+        return estimate(message.getText());
     }
 }

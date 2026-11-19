@@ -10,6 +10,7 @@ import org.jspecify.annotations.Nullable;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.ToolResponseMessage;
 import org.springframework.ai.chat.model.ChatModel;
+import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.ChatOptions;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.model.tool.ToolCallingChatOptions;
@@ -64,16 +65,21 @@ public class Agent {
         todos.reminderAfterUserMessage().ifPresent(conversation::addSystemReminder);
 
         publisher.publishEvent(new AgentEvent.TurnStarted(userMessage));
+        contextChanged("реплика человека");
         for (int iteration = 1; iteration <= agentProperties.maxTurns(); iteration++) {
-            AssistantMessage assistantMessage = askModel();
+            ChatResponse response = askModel();
+            AssistantMessage assistantMessage = response.getResult().getOutput();
             conversation.addAssistantMessage(assistantMessage);
+            conversation.countedByModel(response.getMetadata().getUsage());
             publisher.publishEvent(new AgentEvent.AgentSpoke(assistantMessage.getText()));
+            contextChanged("ответ модели");
             if(!assistantMessage.hasToolCalls()){
                 publisher.publishEvent(new AgentEvent.TurnFinished(Duration.between(startTime, Instant.now()),iteration));
                 return assistantMessage.getText();
             }
             conversation.addToolResponses(executeAll(assistantMessage));
             todos.reminderAfterToolResults().ifPresent(conversation::addSystemReminder);
+            contextChanged("ответы инструментов");
         }
         publisher.publishEvent(new AgentEvent.TurnLimitReached(agentProperties.maxTurns()));
         publisher.publishEvent(new AgentEvent.TurnFinished(Duration.between(startTime, Instant.now()), agentProperties.maxTurns()));
@@ -81,13 +87,17 @@ public class Agent {
 
     }
 
-    private AssistantMessage askModel() {
+    private ChatResponse askModel() {
         Prompt prompt = Prompt.builder()
                 .messages(conversation.toPromptMessages())
                 .chatOptions(toolOptions())
                 .build();
 
-        return chatModel.call(prompt).getResult().getOutput();
+        return chatModel.call(prompt);
+    }
+
+    private void contextChanged(String cause) {
+        publisher.publishEvent(new AgentEvent.ContextChanged(cause));
     }
 
     private ToolResponseMessage executeAll(AssistantMessage assistantMessage) {
