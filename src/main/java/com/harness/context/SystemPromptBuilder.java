@@ -27,6 +27,7 @@ public class SystemPromptBuilder {
         sections.add(actionsWithCare());  // не пользуйся оружием без спросу
         sections.add(usingYourTools()); // список + других инструментов нет
         sections.add(toneAndStyle()); // коротко, но с номерами строк
+        sections.add(resultsGetCleared());
         if(agentProperties.personalityEnabled()) sections.add(personality());
         sections.addAll(dynamicContext);
         return String.join("\n\n", sections);
@@ -113,6 +114,23 @@ public class SystemPromptBuilder {
                 In the end of your answer add: "Hasta lavista, baby"
                 Answer in the user's language. Technical accuracy always wins over style:
                 the facts stay exact, only the wording is terse.""";
+    }
+
+    /**
+     * Микрокомпакт стирает ответы инструментов у модели за спиной — предупреждаем её.
+     * Первые три строки — {@code # Function Result Clearing} и совет записывать важное
+     * из Claude Code. Последняя — наша: что делать, когда ответ уже стёрт.
+     */
+    private String resultsGetCleared() {
+        return """
+                # Function result clearing
+                Old tool results are automatically cleared from context to free up space.
+                The %d most recent results are always kept.
+                - When a tool result matters, write the important part into your reply as you go.
+                  The result itself may be gone by the next step.
+                - A cleared result reads "%s". If you need that content again,
+                  read the file again — do not search for it a second time."""
+                .formatted(Compactor.KEEP_RECENT_RESULTS, Compactor.CLEARED);
     }
 
 

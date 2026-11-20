@@ -6,6 +6,7 @@ import org.springframework.ai.chat.metadata.Usage;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 public class Conversation {
     private final String systemPrompt;
@@ -68,4 +69,31 @@ public class Conversation {
                 .sum();
     }
 
+    public void replaceWithSummary(String summery) {
+        countedTokens -= messages.subList(0, countedMessages).stream().mapToInt(TokenEstimator::estimate).sum();
+        countedMessages = 0;
+        messages.clear();
+        messages.add(new UserMessage(summery));
+    }
+
+    public int clearToolResults(Set<String> tools, int keepRecent, String replacement) {
+        int freed = 0;
+        int seen = 0;
+        for (int i = messages.size() - 1; i >= 0; i--) {
+            if (!(messages.get(i) instanceof ToolResponseMessage toolResponses)) continue;
+            List<ToolResponseMessage.ToolResponse> responses = new ArrayList<>(toolResponses.getResponses());
+            for (int j = responses.size() - 1; j >= 0; j--) {
+                ToolResponseMessage.ToolResponse response = responses.get(j);
+                if (!tools.contains(response.name()) || ++seen <= keepRecent) continue;
+                int saved = TokenEstimator.estimate(response.responseData()) - TokenEstimator.estimate(replacement);
+                if (saved <= 0) continue; // уже стёрт или короче заглушки
+                freed += saved;
+                // Модель этот ответ уже считала — вычитаем из её счёта то, что стёрли.
+                if (i < countedMessages) countedTokens -= saved;
+                responses.set(j, new ToolResponseMessage.ToolResponse(response.id(), response.name(), replacement));
+            }
+            messages.set(i, ToolResponseMessage.builder().responses(responses).build());
+        }
+        return freed;
+    }
 }

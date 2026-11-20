@@ -85,6 +85,16 @@ class SystemPromptBuilderTest {
                 .doesNotContain("Usage: ...");
     }
 
+    @Test
+    void объясняетМоделиОчисткуОтветовИнструментов() {
+        String prompt = builder(false).build(List.of());
+
+        assertThat(prompt).contains(
+                "# Function result clearing",
+                "The " + Compactor.KEEP_RECENT_RESULTS + " most recent results are always kept.",
+                Compactor.CLEARED);
+    }
+
     /** Главный тезис урока: характер — это данные, а не код. */
     @Test
     void характерЭтоОднаСекцияКоторуюМожноВыключить() {

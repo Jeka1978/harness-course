@@ -1,6 +1,7 @@
 package com.harness.agent;
 
 import com.harness.TestPermissionConfig;
+import com.harness.context.Compactor;
 import com.harness.context.ContextManager;
 import com.harness.context.GitStatusProvider;
 import com.harness.context.ProjectMemoryLoader;
@@ -45,7 +46,8 @@ final class TestAgents {
                 new SpringAiToolAdapter(registry),
                 properties,
                 context(registry, properties),
-                todos);
+                todos,
+                new Compactor(model, events, 16_384));
     }
 
     /**

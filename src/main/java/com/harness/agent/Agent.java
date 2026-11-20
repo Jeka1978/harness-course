@@ -1,6 +1,7 @@
 package com.harness.agent;
 
 import com.harness.agent.event.AgentEvent;
+import com.harness.context.Compactor;
 import com.harness.context.ContextManager;
 import com.harness.tool.SpringAiToolAdapter;
 import com.harness.tool.TodoStore;
@@ -33,10 +34,11 @@ public class Agent {
     private final SpringAiToolAdapter springAiToolAdapter;
     private final AgentProperties agentProperties;
     private final TodoStore todos;
+    private final Compactor compactor;
 
 
 
-    public Agent(ChatModel chatModel, ApplicationEventPublisher publisher, ToolRegistry toolRegistry, SpringAiToolAdapter springAiToolAdapter, AgentProperties agentProperties, ContextManager contextManager, TodoStore todos) {
+    public Agent(ChatModel chatModel, ApplicationEventPublisher publisher, ToolRegistry toolRegistry, SpringAiToolAdapter springAiToolAdapter, AgentProperties agentProperties, ContextManager contextManager, TodoStore todos, Compactor compactor) {
         this.chatModel = chatModel;
         this.publisher = publisher;
         this.toolRegistry = toolRegistry;
@@ -44,6 +46,7 @@ public class Agent {
         this.agentProperties = agentProperties;
         this.conversation = new Conversation(contextManager.systemPrompt());
         this.todos = todos;
+        this.compactor = compactor;
     }
 
     public Conversation conversation() {
@@ -61,12 +64,14 @@ public class Agent {
 
     public String run(String userMessage) {
         Instant startTime = Instant.now();
+        compactor.autocompact(conversation);
         conversation.addUserMessage(userMessage);
         todos.reminderAfterUserMessage().ifPresent(conversation::addSystemReminder);
 
         publisher.publishEvent(new AgentEvent.TurnStarted(userMessage));
         contextChanged("реплика человека");
         for (int iteration = 1; iteration <= agentProperties.maxTurns(); iteration++) {
+            compactor.microcompact(conversation);
             ChatResponse response = askModel();
             AssistantMessage assistantMessage = response.getResult().getOutput();
             conversation.addAssistantMessage(assistantMessage);
