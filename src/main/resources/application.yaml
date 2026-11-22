@@ -28,4 +28,4 @@ logging:
     console: "%msg%n"
 harness:
   permission:
-    mode: accept_edits
+    mode: bypass_permissions
