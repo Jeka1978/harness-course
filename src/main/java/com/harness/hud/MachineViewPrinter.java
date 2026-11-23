@@ -174,6 +174,12 @@ class MachineViewPrinter {
         print(Ansi.bold(Ansi.red("> ПРЕДЕЛ ИТЕРАЦИЙ (" + maxTurns + ") — МИССИЯ ПРЕРВАНА")));
     }
 
+
+    void showRepeatedCallBlocked(String toolName, int callCount) {
+        print(Ansi.bold(Ansi.red("> ПОВТОР ЗАБЛОКИРОВАН: "))
+                + toolName + " · одинаковых вызовов подряд: " + callCount);
+    }
+
     /**
      * Итог хода. Число итераций — единственное место, где виден сам цикл:
      * в boot-логе его не показать, подсистемы там статичны.

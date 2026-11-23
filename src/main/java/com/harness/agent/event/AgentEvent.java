@@ -1,6 +1,7 @@
 package com.harness.agent.event;
 
 import com.harness.tool.TodoItem;
+import org.springframework.context.ApplicationEvent;
 
 import java.time.Duration;
 import java.util.List;
@@ -30,4 +31,7 @@ public sealed interface AgentEvent {
 
     /** В разговоре что-то изменилось — пора пересчитать свободное место в окне. */
     record ContextChanged(String cause) implements AgentEvent { }
+
+     record RepeatedCallBlocked(String toolName, int callCount) implements AgentEvent {
+    }
 }

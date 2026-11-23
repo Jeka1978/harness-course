@@ -35,6 +35,19 @@ public class Agent {
     private final AgentProperties agentProperties;
     private final TodoStore todos;
     private final Compactor compactor;
+    static final String BLOCK_NOTICE = """
+            TOOL CALL BLOCKED — HARD RESTRICTION
+
+            The previous tool call was blocked. This operation and all previously failed approaches are strictly forbidden.
+
+            You MUST NOT retry any blocked or previously failed operation, including with identical, equivalent, or superficially modified arguments.
+
+            You MAY continue the original task ONLY if you can identify a genuinely different, untried approach that could make meaningful progress.
+
+            If no such approach exists, you MUST STOP immediately and clearly explain to the user why the task cannot be completed and what is blocking you.
+
+            Under no circumstances attempt a blocked operation again.
+            """;
 
 
 
@@ -70,6 +83,7 @@ public class Agent {
 
         publisher.publishEvent(new AgentEvent.TurnStarted(userMessage));
         contextChanged("реплика человека");
+        RepeatedCallGuard repeatedCallGuard = new RepeatedCallGuard();
         for (int iteration = 1; iteration <= agentProperties.maxTurns(); iteration++) {
             compactor.microcompact(conversation);
             ChatResponse response = askModel();
@@ -82,8 +96,7 @@ public class Agent {
                 publisher.publishEvent(new AgentEvent.TurnFinished(Duration.between(startTime, Instant.now()),iteration));
                 return assistantMessage.getText();
             }
-            conversation.addToolResponses(executeAll(assistantMessage));
-            todos.reminderAfterToolResults().ifPresent(conversation::addSystemReminder);
+            executeAll(assistantMessage,repeatedCallGuard);
             contextChanged("ответы инструментов");
         }
         publisher.publishEvent(new AgentEvent.TurnLimitReached(agentProperties.maxTurns()));
@@ -105,13 +118,22 @@ public class Agent {
         publisher.publishEvent(new AgentEvent.ContextChanged(cause));
     }
 
-    private ToolResponseMessage executeAll(AssistantMessage assistantMessage) {
+    private ToolResponseMessage executeAll(AssistantMessage assistantMessage, RepeatedCallGuard repeatedCallGuard) {
         List<ToolResponseMessage.ToolResponse> toolResponses = new ArrayList<>();
+        boolean anyBlocked = false;
         for (AssistantMessage.ToolCall toolCall : assistantMessage.getToolCalls()) {
-            ToolResult toolResult = toolRegistry.execute(toolCall.name(), toolCall.arguments());
+            ToolResult toolResult = repeatedCallGuard.execute(toolRegistry,toolCall,publisher);
+            anyBlocked |= repeatedCallGuard.isBlocked();
             todos.countToolResult(toolCall.arguments(), toolResult);
             toolResponses.add(new ToolResponseMessage.ToolResponse(toolCall.id(),toolCall.name(),toolResult.content()));
         }
+        conversation.addToolResponses(ToolResponseMessage.builder().responses(toolResponses).build());
+        if(anyBlocked){
+            conversation.addUserMessage(BLOCK_NOTICE);
+        }else {
+            todos.reminderAfterToolResults().ifPresent(conversation::addSystemReminder);
+        }
+
         return ToolResponseMessage.builder().responses(toolResponses).build();
     }
 

@@ -123,6 +123,10 @@ public class Hud {
         machinePrinter.showTurnLimitReached(event.maxTurns());
     }
 
+    @EventListener
+    public void onRepeatedCallBlocked(AgentEvent.RepeatedCallBlocked event) {
+        machinePrinter.showRepeatedCallBlocked(event.toolName(), event.callCount());
+    }
 
     //    @EventListener
     public void onAgentSpokeEvent(AgentEvent.AgentSpoke event) {
