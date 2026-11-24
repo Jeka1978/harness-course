@@ -3,6 +3,7 @@ package com.harness.agent;
 import static com.harness.agent.TestAgents.agent;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.harness.agent.event.AgentEvent;
 import com.harness.tool.Tool;
 import com.harness.tool.ToolContext;
 import com.harness.tool.ToolResult;
@@ -156,6 +157,155 @@ class AgentLoopTest {
         assertThat(answer).isEqualTo("Извини.");
         assertThat(toolMessageOf(model.lastPrompt().getInstructions()).getResponses().getFirst().responseData())
                 .contains("нет инструмента");
+    }
+
+    @Test
+    void blocksRepeatedCallAndLetsAgentTryAnotherStep() {
+        SpyTool tool = new SpyTool(ToolResult.error("класс не найден"));
+        ScriptedChatModel model = new ScriptedChatModel();
+        for (int i = 1; i <= 3; i++) {
+            model.then(toolCall("same-" + i, "Spy", "{\"value\":\"missing\"}"));
+        }
+        model.then(AssistantMessage.builder().content("").toolCalls(List.of(
+                new AssistantMessage.ToolCall("same-4", "function", "Spy", "{\"value\":\"missing\"}"),
+                new AssistantMessage.ToolCall("still-same", "function", "Spy", "{\"value\":\"missing\"}"),
+                new AssistantMessage.ToolCall("different-in-batch", "function", "Spy", "{\"value\":\"in batch\"}")))
+                .build());
+        model.then(toolCall("fresh-after-other-call", "Spy", "{\"value\":\"missing\"}"));
+        model.then(new AssistantMessage("Класс не найден, поиск остановлен."));
+
+        String answer = agent(model, publisher, tool).run("найди класс");
+
+        assertThat(tool.calls).containsExactly("missing", "missing", "missing", "in batch", "missing");
+        assertThat(answer).isEqualTo("Класс не найден, поиск остановлен.");
+        assertThat(publisher.events()).filteredOn(AgentEvent.RepeatedCallBlocked.class::isInstance)
+                .containsExactly(new AgentEvent.RepeatedCallBlocked("Spy", 4), new AgentEvent.RepeatedCallBlocked("Spy", 5));
+
+        List<Message> afterBlock = model.receivedPrompts().get(4).getInstructions();
+        ToolResponseMessage responses = (ToolResponseMessage) afterBlock.get(afterBlock.size() - 2);
+        assertThat(afterBlock.getLast().getMessageType()).isEqualTo(MessageType.USER);
+        assertThat(afterBlock.getLast().getText()).isEqualTo(Agent.BLOCK_NOTICE);
+        assertThat(responses.getResponses()).extracting(ToolResponseMessage.ToolResponse::id)
+                .containsExactly("same-4", "still-same", "different-in-batch");
+        assertThat(responses.getResponses().subList(0, 2))
+                .extracting(ToolResponseMessage.ToolResponse::responseData)
+                .allSatisfy(refusal -> assertThat(refusal)
+                        .contains("Your last tool call was blocked and NOT executed", "класс не найден"));
+    }
+
+    @Test
+    void keepsRejectingTheSameCallWithoutEndingTurn() {
+        SpyTool tool = new SpyTool(ToolResult.error("файл не найден"));
+        ScriptedChatModel model = new ScriptedChatModel();
+        for (int i = 1; i <= 5; i++) {
+            model.then(toolCall("read-" + i, "Spy", "{\"value\":\"missing\"}"));
+        }
+        model.then(new AssistantMessage("Код не найден."));
+
+        String answer = agent(model, publisher, tool).run("найди код");
+
+        assertThat(answer).isEqualTo("Код не найден.");
+        assertThat(model.callCount()).isEqualTo(6);
+        assertThat(tool.calls).containsExactly("missing", "missing", "missing");
+        assertThat(publisher.events()).filteredOn(AgentEvent.RepeatedCallBlocked.class::isInstance)
+                .containsExactly(new AgentEvent.RepeatedCallBlocked("Spy", 4), new AgentEvent.RepeatedCallBlocked("Spy", 5));
+        assertThat(publisher.events()).noneMatch(AgentEvent.TurnLimitReached.class::isInstance);
+
+        List<Message> history = model.lastPrompt().getInstructions();
+        assertThat(history).filteredOn(message -> message.getMessageType() == MessageType.USER)
+                .extracting(Message::getText)
+                .filteredOn(text -> text.startsWith("TOOL CALL BLOCKED"))
+                .containsExactly(Agent.BLOCK_NOTICE, Agent.BLOCK_NOTICE);
+        assertThat(history.stream()
+                .filter(ToolResponseMessage.class::isInstance)
+                .map(ToolResponseMessage.class::cast)
+                .flatMap(message -> message.getResponses().stream())
+                .filter(response -> List.of("read-4", "read-5").contains(response.id()))
+                .toList())
+                .extracting(ToolResponseMessage.ToolResponse::responseData)
+                .hasSize(2)
+                .allSatisfy(refusal -> assertThat(refusal).contains("Your last tool call was blocked"));
+    }
+
+    @Test
+    void canRetryAfterADifferentCall() {
+        SpyTool tool = new SpyTool(ToolResult.ok("старое содержимое")) {
+            @Override
+            public ToolResult call(Input input, ToolContext context) {
+                calls.add(input.value());
+                if ("edit".equals(input.value())) {
+                    return ToolResult.ok("файл изменён");
+                }
+                return ToolResult.ok(calls.contains("edit") ? "новое содержимое" : "старое содержимое");
+            }
+        };
+        ScriptedChatModel model = new ScriptedChatModel();
+        for (int i = 1; i <= 4; i++) {
+            model.then(toolCall("read-" + i, "Spy", "{\"value\":\"read\"}"));
+        }
+        model.then(AssistantMessage.builder().content("").toolCalls(List.of(
+                new AssistantMessage.ToolCall("edit", "function", "Spy", "{\"value\":\"edit\"}"),
+                new AssistantMessage.ToolCall("verify", "function", "Spy", "{\"value\":\"read\"}")))
+                .build());
+        model.then(new AssistantMessage("Перечитал файл после правки."));
+
+        String answer = agent(model, publisher, tool).run("измени файл и проверь");
+
+        assertThat(answer).isEqualTo("Перечитал файл после правки.");
+        assertThat(tool.calls).containsExactly("read", "read", "read", "edit", "read");
+        assertThat(publisher.events()).filteredOn(AgentEvent.RepeatedCallBlocked.class::isInstance)
+                .containsExactly(new AgentEvent.RepeatedCallBlocked("Spy", 4));
+        assertThat(toolMessageOf(model.lastPrompt().getInstructions()).getResponses().getFirst().responseData())
+                .isEqualTo("старое содержимое");
+        assertThat(model.lastPrompt().getInstructions()).filteredOn(ToolResponseMessage.class::isInstance)
+                .map(ToolResponseMessage.class::cast).last()
+                .satisfies(message -> assertThat(message.getResponses().getLast().responseData())
+                        .isEqualTo("новое содержимое"));
+    }
+
+    @Test
+    void blocksFourthCallEvenWhenResultsChange() {
+        SpyTool tool = new SpyTool(ToolResult.ok("unused")) {
+            @Override
+            public ToolResult call(Input input, ToolContext context) {
+                calls.add(input.value());
+                return ToolResult.ok("результат " + calls.size());
+            }
+        };
+        ScriptedChatModel model = new ScriptedChatModel();
+        for (int i = 1; i <= 4; i++) {
+            model.then(toolCall("call-" + i, "Spy", "{\"value\":\"same\"}"));
+        }
+        model.then(new AssistantMessage("Готово."));
+
+        agent(model, publisher, tool).run("проверь несколько раз");
+
+        assertThat(tool.calls).hasSize(3);
+        assertThat(publisher.events()).filteredOn(AgentEvent.RepeatedCallBlocked.class::isInstance)
+                .containsExactly(new AgentEvent.RepeatedCallBlocked("Spy", 4));
+        assertThat(model.lastPrompt().getInstructions()).filteredOn(ToolResponseMessage.class::isInstance)
+                .map(ToolResponseMessage.class::cast).last()
+                .satisfies(message -> assertThat(message.getResponses().getFirst().responseData())
+                        .contains("Last result: результат 3"));
+    }
+
+    @Test
+    void userCanRestartSameCallInANewTurn() {
+        SpyTool tool = new SpyTool(ToolResult.error("класс не найден"));
+        ScriptedChatModel model = new ScriptedChatModel();
+        for (int i = 1; i <= 3; i++) {
+            model.then(toolCall("first-" + i, "Spy", "{\"value\":\"same\"}"));
+        }
+        model.then(new AssistantMessage("Остановился."));
+        model.then(toolCall("second-1", "Spy", "{\"value\":\"same\"}"));
+        model.then(new AssistantMessage("Перепроверил."));
+        Agent agent = agent(model, publisher, tool);
+
+        agent.run("найди класс");
+        agent.run("попробуй ещё раз");
+
+        assertThat(tool.calls).hasSize(4);
+        assertThat(publisher.events()).noneMatch(AgentEvent.RepeatedCallBlocked.class::isInstance);
     }
 
     private static final String PLAN = """

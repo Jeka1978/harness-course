@@ -35,7 +35,7 @@ public class RepeatedCallGuard {
         if (isBlocked()) {
             publisher.publishEvent(new AgentEvent.RepeatedCallBlocked(toolCall.name(), callCount));
 
-            return ToolResult.error(REFUSAL.formatted(toolCall.name(), toolCall.arguments(), lastResult));
+            return ToolResult.error(REFUSAL.formatted(toolCall.name(), toolCall.arguments(), lastResult.content()));
         }
         lastResult = toolRegistry.execute(toolCall.name(), toolCall.arguments());
         return lastResult;
