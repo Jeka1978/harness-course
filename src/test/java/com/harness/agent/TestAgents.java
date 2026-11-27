@@ -7,7 +7,6 @@ import com.harness.context.GitStatusProvider;
 import com.harness.context.ProjectMemoryLoader;
 import com.harness.context.SystemPromptBuilder;
 import com.harness.tool.FileStateCache;
-import com.harness.tool.SpringAiToolAdapter;
 import com.harness.tool.TodoStore;
 import com.harness.tool.Tool;
 import com.harness.tool.ToolRegistry;
@@ -39,15 +38,11 @@ final class TestAgents {
                         todos,
                         TestPermissionConfig.permissive(),
                         TestPermissionConfig.allowOnce());
-        return new Agent(
-                model,
-                events,
-                registry,
-                new SpringAiToolAdapter(registry),
-                properties,
-                context(registry, properties),
-                todos,
-                new Compactor(model, events, 16_384));
+        return new Agent.Builder(model, events, properties, new Compactor(model, events, 16_384))
+                .tools(registry)
+                .systemPrompt(context(registry, properties).systemPrompt())
+                .todos(todos)
+                .build();
     }
 
     /**

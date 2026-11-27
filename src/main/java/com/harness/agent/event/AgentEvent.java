@@ -34,4 +34,8 @@ public sealed interface AgentEvent {
 
      record RepeatedCallBlocked(String toolName, int callCount) implements AgentEvent {
     }
+
+    record SubagentStarted(String description) implements AgentEvent { }
+
+    record SubagentFinished(String description, int reportChars, Duration elapsed) implements AgentEvent { }
 }

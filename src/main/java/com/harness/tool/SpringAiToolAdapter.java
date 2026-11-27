@@ -2,11 +2,9 @@ package com.harness.tool;
 
 import org.springframework.ai.tool.ToolCallback;
 import org.springframework.ai.tool.definition.ToolDefinition;
-import org.springframework.stereotype.Component;
 
 import java.util.List;
 
-@Component
 public class SpringAiToolAdapter {
 
     private final ToolRegistry registry;

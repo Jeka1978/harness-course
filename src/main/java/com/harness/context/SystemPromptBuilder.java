@@ -80,8 +80,24 @@ public class SystemPromptBuilder {
                 - To find files by name use Glob, to search their contents use Grep.
                 - Read a file before editing it. Edit replaces exact text; Write replaces the whole file.
                 - When you need to inspect code not already supplied in context, use Grep to locate the place, then Read only what you need.
-                - Break down and manage your work with the TodoWrite tool. These tools are helpful for planning your work and helping the user track your progress. Mark each task as completed as soon as you are done with the task. Do not batch up multiple tasks before marking them as completed."""
-                .formatted(toolRegistry.tools().size(),inventory());
+                %s- Break down and manage your work with the TodoWrite tool. These tools are helpful for planning your work and helping the user track your progress. Mark each task as completed as soon as you are done with the task. Do not batch up multiple tasks before marking them as completed."""
+                .formatted(toolRegistry.tools().size(), inventory(), delegating());
+    }
+
+    private String delegating() {
+        if (toolRegistry.tools().stream().noneMatch(tool -> tool.name().equals("Task"))) {
+            return "";
+        }
+        return """
+                - Use the Task tool with specialized agents when the task at hand matches the agent's description. \
+                Subagents are valuable for parallelizing independent queries or for protecting the main context window \
+                from excessive results, but they should not be used excessively when not needed. Importantly, avoid \
+                duplicating work that subagents are already doing - if you delegate research to a subagent, do not also \
+                perform the same searches yourself.
+                - For broader codebase exploration and deep research, use the Task tool with the Explore agent. \
+                This is slower than using Glob or Grep directly, so use this only when a simple, directed search proves \
+                to be insufficient or when your task will clearly require more than 3 queries.
+                """;
     }
 
 

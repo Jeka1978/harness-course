@@ -119,6 +119,16 @@ public class Hud {
     }
 
     @EventListener
+    public void onSubagentStarted(AgentEvent.SubagentStarted event) {
+        machinePrinter.showSubagentStarted(event.description());
+    }
+
+    @EventListener
+    public void onSubagentFinished(AgentEvent.SubagentFinished event) {
+        machinePrinter.showSubagentFinished(event.reportChars(), event.elapsed());
+    }
+
+    @EventListener
     public void onTurnLimitReached(AgentEvent.TurnLimitReached event) {
         machinePrinter.showTurnLimitReached(event.maxTurns());
     }

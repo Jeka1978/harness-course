@@ -170,6 +170,15 @@ class MachineViewPrinter {
         return "%,d".formatted(number).replace(',', ' ');
     }
 
+    void showSubagentStarted(String description) {
+        print(Ansi.red("> РАЗВЕДКА ВЫСЛАНА: ") + description);
+    }
+
+    void showSubagentFinished(int reportChars, Duration elapsed) {
+        print(Ansi.dim("> РАЗВЕДКА ВЕРНУЛАСЬ: %d символов за %d мс"
+                .formatted(reportChars, elapsed.toMillis())));
+    }
+
     void showTurnLimitReached(int maxTurns) {
         print(Ansi.bold(Ansi.red("> ПРЕДЕЛ ИТЕРАЦИЙ (" + maxTurns + ") — МИССИЯ ПРЕРВАНА")));
     }

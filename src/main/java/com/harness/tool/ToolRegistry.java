@@ -14,6 +14,7 @@ import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Predicate;
 
 @Component
 public class ToolRegistry {
@@ -43,6 +44,11 @@ public class ToolRegistry {
         this.publisher = applicationEventPublisher;
         this.context = context;
         this.permissionGate = permissionGate;
+    }
+
+    /** Те же разрешения и та же шина, но только эти инструменты и своя память. */
+    public ToolRegistry subset(Predicate<Tool<?>> allowed, ToolContext context) {
+        return new ToolRegistry(byName.values().stream().filter(allowed).toList(), publisher, context, permissionGate);
     }
 
     public List<Tool<?>> tools() {

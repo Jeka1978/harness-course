@@ -2,7 +2,6 @@ package com.harness.agent;
 
 import com.harness.agent.event.AgentEvent;
 import com.harness.context.Compactor;
-import com.harness.context.ContextManager;
 import com.harness.tool.SpringAiToolAdapter;
 import com.harness.tool.TodoStore;
 import com.harness.tool.ToolRegistry;
@@ -16,14 +15,13 @@ import org.springframework.ai.chat.prompt.ChatOptions;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.model.tool.ToolCallingChatOptions;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
-@Service
 public class Agent {
 
 
@@ -48,19 +46,25 @@ public class Agent {
 
             Under no circumstances attempt a blocked operation again.
             """;
+    /** {@code null} у главного агента, непустой у субагента. */
+    private final @Nullable String agentId;
+
+    /** Список типов агентов передаётся один раз за разговор. */
+    private boolean agentsListed;
 
 
-
-    public Agent(ChatModel chatModel, ApplicationEventPublisher publisher, ToolRegistry toolRegistry, SpringAiToolAdapter springAiToolAdapter, AgentProperties agentProperties, ContextManager contextManager, TodoStore todos, Compactor compactor) {
-        this.chatModel = chatModel;
-        this.publisher = publisher;
-        this.toolRegistry = toolRegistry;
-        this.springAiToolAdapter = springAiToolAdapter;
-        this.agentProperties = agentProperties;
-        this.conversation = new Conversation(contextManager.systemPrompt());
-        this.todos = todos;
-        this.compactor = compactor;
+    private Agent(Builder builder) {
+        this.chatModel = builder.chatModel;
+        this.publisher = builder.publisher;
+        this.agentProperties = builder.properties;
+        this.compactor = builder.compactor;
+        this.toolRegistry = Objects.requireNonNull(builder.tools, "tools");
+        this.springAiToolAdapter = new SpringAiToolAdapter(toolRegistry);
+        this.conversation = new Conversation(Objects.requireNonNull(builder.systemPrompt, "systemPrompt"));
+        this.todos = Objects.requireNonNull(builder.todos, "todos");
+        this.agentId = builder.agentId;
     }
+
 
     public Conversation conversation() {
         return conversation;
@@ -79,9 +83,15 @@ public class Agent {
         Instant startTime = Instant.now();
         compactor.autocompact(conversation);
         conversation.addUserMessage(userMessage);
-        todos.reminderAfterUserMessage().ifPresent(conversation::addSystemReminder);
-
-        publisher.publishEvent(new AgentEvent.TurnStarted(userMessage));
+        if (isMain()) {
+            if (!agentsListed && toolRegistry.tools().stream()
+                    .anyMatch(tool -> tool.name().equals(AgentTool.NAME))) {
+                conversation.addSystemReminder(AgentTool.LISTING_REMINDER);
+                agentsListed = true;
+            }
+            todos.reminderAfterUserMessage().ifPresent(conversation::addSystemReminder);
+            publisher.publishEvent(new AgentEvent.TurnStarted(userMessage));
+        }
         contextChanged("реплика человека");
         RepeatedCallGuard repeatedCallGuard = new RepeatedCallGuard();
         for (int iteration = 1; iteration <= agentProperties.maxTurns(); iteration++) {
@@ -93,14 +103,18 @@ public class Agent {
             publisher.publishEvent(new AgentEvent.AgentSpoke(assistantMessage.getText()));
             contextChanged("ответ модели");
             if(!assistantMessage.hasToolCalls()){
-                publisher.publishEvent(new AgentEvent.TurnFinished(Duration.between(startTime, Instant.now()),iteration));
+                if (isMain()) {
+                    publisher.publishEvent(new AgentEvent.TurnFinished(Duration.between(startTime, Instant.now()), iteration));
+                }
                 return assistantMessage.getText();
             }
             executeAll(assistantMessage,repeatedCallGuard);
             contextChanged("ответы инструментов");
         }
         publisher.publishEvent(new AgentEvent.TurnLimitReached(agentProperties.maxTurns()));
-        publisher.publishEvent(new AgentEvent.TurnFinished(Duration.between(startTime, Instant.now()), agentProperties.maxTurns()));
+        if (isMain()) {
+            publisher.publishEvent(new AgentEvent.TurnFinished(Duration.between(startTime, Instant.now()), agentProperties.maxTurns()));
+        }
         return "Достигнут предел в %d итераций — задача не завершена.".formatted(agentProperties.maxTurns());
 
     }
@@ -114,8 +128,14 @@ public class Agent {
         return chatModel.call(prompt);
     }
 
+    private boolean isMain() {
+        return agentId == null;
+    }
+
     private void contextChanged(String cause) {
-        publisher.publishEvent(new AgentEvent.ContextChanged(cause));
+        if (isMain()) {
+            publisher.publishEvent(new AgentEvent.ContextChanged(cause));
+        }
     }
 
     private ToolResponseMessage executeAll(AssistantMessage assistantMessage, RepeatedCallGuard repeatedCallGuard) {
@@ -130,7 +150,7 @@ public class Agent {
         conversation.addToolResponses(ToolResponseMessage.builder().responses(toolResponses).build());
         if(anyBlocked){
             conversation.addUserMessage(BLOCK_NOTICE);
-        }else {
+        } else if (isMain()) {
             todos.reminderAfterToolResults().ifPresent(conversation::addSystemReminder);
         }
 
@@ -147,5 +167,50 @@ public class Agent {
                                 .toolCallbacks((springAiToolAdapter.toolCallbacks()))
                 )
                 .build();
+    }
+
+    public static final class Builder {
+
+        private final ChatModel chatModel;
+        private final ApplicationEventPublisher publisher;
+        private final AgentProperties properties;
+        private final Compactor compactor;
+
+        private @Nullable ToolRegistry tools;
+        private @Nullable String systemPrompt;
+        private @Nullable TodoStore todos;
+        private @Nullable String agentId;
+
+        Builder(ChatModel chatModel, ApplicationEventPublisher publisher, AgentProperties properties, Compactor compactor) {
+            this.chatModel = chatModel;
+            this.publisher = publisher;
+            this.properties = properties;
+            this.compactor = compactor;
+        }
+
+        public Builder tools(ToolRegistry tools) {
+            this.tools = tools;
+            return this;
+        }
+
+        public Builder systemPrompt(String systemPrompt) {
+            this.systemPrompt = systemPrompt;
+            return this;
+        }
+
+        public Builder todos(TodoStore todos) {
+            this.todos = todos;
+            return this;
+        }
+
+        /** Номер есть только у субагента: главного отличает как раз то, что номера у него нет. */
+        public Builder agentId(String agentId) {
+            this.agentId = agentId;
+            return this;
+        }
+
+        public Agent build() {
+            return new Agent(this);
+        }
     }
 }

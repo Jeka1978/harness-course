@@ -11,7 +11,6 @@ import com.harness.permission.PermissionMode;
 import com.harness.permission.PermissionPrompt;
 import com.harness.permission.PermissionProperties;
 import com.harness.tool.FileStateCache;
-import com.harness.tool.SpringAiToolAdapter;
 import com.harness.tool.Tool;
 import com.harness.tool.ToolContext;
 import com.harness.tool.ToolRegistry;
@@ -79,16 +78,13 @@ class BashMissionOllamaTest {
                         new ProjectMemoryLoader(properties),
                         new SystemPromptBuilder(registry, properties),
                         properties);
-        Agent agent =
-                new Agent(
-                        chatModel,
-                        events,
-                        registry,
-                        new SpringAiToolAdapter(registry),
-                        properties,
-                        context,
-                        new com.harness.tool.TodoStore(16_384),
-                        new com.harness.context.Compactor(chatModel, events, 16_384));
+        Agent agent = new Agent.Builder(
+                chatModel, events, properties,
+                new com.harness.context.Compactor(chatModel, events, 16_384))
+                .tools(registry)
+                .systemPrompt(context.systemPrompt())
+                .todos(new com.harness.tool.TodoStore(16_384))
+                .build();
 
         String answer = agent.run("Запусти тесты проекта и скажи, всё ли зелено.");
 
